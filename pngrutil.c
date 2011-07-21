@@ -1,9 +1,9 @@
 
 /* pngrutil.c - utilities to read a PNG file
  *
- * Last changed in libpng 1.2.44 [June 26, 2010]
+ * Last changed in libpng 1.2.45 [July 7, 2011]
  * Copyright (c) 2010, Code Aurora Forum. All rights reserved.
- * Copyright (c) 1998-2010 Glenn Randers-Pehrson
+ * Copyright (c) 1998-2011 Glenn Randers-Pehrson
  * (Version 0.96 Copyright (c) 1996, 1997 Andreas Dilger)
  * (Version 0.88 Copyright (c) 1995, 1996 Guy Eric Schalnat, Group 42, Inc.)
  *
@@ -1817,6 +1817,14 @@ png_handle_sCAL(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
       return;
    }
 
+   /* Need unit type, width, \0, height: minimum 4 bytes */
+   else if (length < 4)
+   {
+      png_warning(png_ptr, "sCAL chunk too short");
+      png_crc_finish(png_ptr, length);
+      return;
+   }
+
    png_debug1(2, "Allocating and reading sCAL chunk data (%lu bytes)",
       length + 1);
    png_ptr->chunkdata = (png_charp)png_malloc_warn(png_ptr, length + 1);
@@ -3013,11 +3021,14 @@ png_read_filter_row(png_structp png_ptr, png_row_infop row_info, png_bytep row,
          for (i = 0; i < istop; i++)   /* Use leftover rp,pp */
          {
             int a, b, c, pa, pb, pc, p;
+
             a = *lp++;
             b = *pp++;
             c = *cp++;
+
             p = b - c;
             pc = a - c;
+
 #ifdef PNG_USE_ABS
             pa = abs(p);
             pb = abs(pc);
@@ -3027,6 +3038,16 @@ png_read_filter_row(png_structp png_ptr, png_row_infop row_info, png_bytep row,
             pb = pc < 0 ? -pc : pc;
             pc = (p + pc) < 0 ? -(p + pc) : p + pc;
 #endif
+
+            /*
+               if (pa <= pb && pa <= pc)
+                  p = a;
+               else if (pb <= pc)
+                  p = b;
+               else
+                  p = c;
+             */
+
             p = (pa <= pb && pa <= pc) ? a : (pb <= pc) ? b : c;
 
             *rp = (png_byte)(((int)(*rp) + p) & 0xff);
